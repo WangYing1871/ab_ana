@@ -213,6 +213,7 @@ void RootConvert::Loop2(TTree *signaltree, TTree *bkgtree, double threshold)
       cout<<"Filling background histograms..."<<endl;
       entries = bkgtree->GetEntriesFast();
       cout<<"Total background event numbers: "<< entries << endl;
+  std
 
       for(int jentry=0; jentry < (float)entries/2;jentry++){
         //use the entries:0,2,4,...... for training

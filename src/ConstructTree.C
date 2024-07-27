@@ -191,7 +191,6 @@ void RootConvert::Loop(char *RootFileName)
 
       pedM = pedestal[mapL2[Fec[i]]][Chip[i]][Chn[i]][0]; // mean is the 4th column of pedestal file
       pedS = pedestal[mapL2[Fec[i]]][Chip[i]][Chn[i]][1];
-
       sumADC[i] = sumADC[i] - pedM * Nsp;
 
       // summaxADC = summaxADC - pedM;
