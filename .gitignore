@@ -1,8 +1,5 @@
 build/
 .*.swp
 .*.dat
-backup/
-Calibration/
-map/
-obj/
 Makefile
+backup/
