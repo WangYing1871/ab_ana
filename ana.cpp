@@ -358,7 +358,6 @@ struct signal_handler{
 
 
     std::vector<TH1I*> a00;
-    auto* ave_anti = new TH1I("ave_anti","ave_anti",300,550,850);
     
     for (auto&& [x,y] : channel_adcs){
       std::vector<uint16_t> buf(y.size()*1024);
@@ -373,7 +372,6 @@ struct signal_handler{
       for(auto&& x : buf) f1->Fill(x);
       if(sstr.str()[0]=='A'){
         for (auto iter = buf.begin(); iter != buf.end(); iter += 1024){
-          ave_anti->Fill(std::accumulate(iter,iter+1024,0)/1024);
         }
 
       }
@@ -409,7 +407,6 @@ struct signal_handler{
         x->Fit(f1,"RQ");
         x->Write();
       }
-      ave_anti->Write();
 
 
 
@@ -504,6 +501,7 @@ struct signal_handler{
     signal_pack_t parser;
 
     std::map<size_t,TH1I*> a00;
+    auto* sum_anti = new TH1I("sum_anti","sum_anti",4096,0,4096);
     if (_is_signal_viewer){
       for(auto&& [x,y] : util::config::channels_map){
         std::stringstream sstr; sstr<<y<<"_S";
@@ -518,8 +516,12 @@ struct signal_handler{
         auto& ref = m_signal_table[parser.get_event_id()][parser.get_channel_id()];
         std::transform(std::begin(parser.adc),std::end(parser.adc),std::begin(ref)
             ,[](uint16_t a){return (uint16_t)(a&0x0FFF);});
-        if (_is_signal_viewer) a00[parser.get_channel_id()]->Fill(
-            *std::max_element(std::begin(ref),std::end(ref)));
+        if (_is_signal_viewer){ 
+          auto max = *std::max_element(std::begin(ref),std::end(ref));
+          a00[parser.get_channel_id()]->Fill(max);
+          if (util::config::channels_map[parser.get_channel_id()][0]=='A') 
+            sum_anti->Fill(max);
+        }
       }
     }
 
@@ -529,6 +531,7 @@ struct signal_handler{
       auto* file = new TFile("signal.root","recreate");
       file->cd();
       for (auto&& [x,y] : a00 ) y->Write();
+      sum_anti->Write();
       file->Write(); file->Close();
     }
   }

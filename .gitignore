@@ -3,3 +3,4 @@ build/
 .*.dat
 Makefile
 backup/
+main
