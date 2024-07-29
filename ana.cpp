@@ -4,26 +4,27 @@
 //^-^ File: unpack.cpp
 //--------------------------------------------------------------------
 #include <algorithm>
-#include <numeric>
-#include <iostream>
-#include <cstdlib>
-#include <cmath>
-#include <string>
-#include <vector>
-#include <fstream>
-#include <thread>
-#include <map>
-#include <unordered_map>
-#include <chrono>
-#include <sstream>
 #include <array>
-#include <type_traits>
-#include <stdexcept>
-#include <set>
-#include <mutex>
-#include <thread>
+#include <chrono>
+#include <cmath>
 #include <condition_variable>
+#include <cstdlib>
+#include <ctime>
+#include <fstream>
 #include <functional>
+#include <iomanip>
+#include <iostream>
+#include <map>
+#include <mutex>
+#include <numeric>
+#include <set>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <thread>
+#include <type_traits>
+#include <unordered_map>
+#include <vector>
 
 #include <boost/timer/timer.hpp>
 #include <boost/math/statistics/bivariate_statistics.hpp>
@@ -38,6 +39,7 @@
 #include "TH1I.h"
 #include "TH2F.h"
 #include "TF1.h"
+#include "TCanvas.h"
 
 #define info_out(X) std::cout<<"==> "<<__LINE__<<" "<<#X<<" |"<<(X)<<"|\n"
 namespace util{
@@ -317,9 +319,13 @@ struct signal_handler{
   std::string m_baseline_name;
   bool _is_baseline_viewer = false;
   bool _is_signal_viewer = false;
+  bool _is_draw_baseline = false;
+  bool _is_draw_signal = false;
 
   void baseline_viewer(bool v) {_is_baseline_viewer = v;}
   void signal_viewer(bool v) {_is_signal_viewer = v;}
+  void draw_baseline(bool v) {_is_draw_baseline = v;}
+  void draw_signal(bool v) {_is_draw_signal = v;}
 
   struct mean_sigma{
     float mean;
@@ -331,9 +337,32 @@ struct signal_handler{
   };
   std::unordered_map<size_t,mean_sigma> m_baseline_table;
   std::unordered_map<size_t,std::unordered_map<uint8_t,std::array<uint16_t,1024>>> m_signal_table;
-
   void file_name(std::string const& v) {m_file_name = v;}
   void baseline_name(std::string const& v) {m_baseline_name = v;}
+
+  void draw(std::vector<TH1I*> const& v
+      ,std::string const& px_name
+      ,std::string const& py_name
+      ,std::string const& pz_name){
+    auto* canvas_x = new TCanvas("canvas_x","canvas_x",1200,900);
+    auto* canvas_y = new TCanvas("canvas_y","canvas_y",1200,900);
+    auto* canvas_anti = new TCanvas("canvas_anti","canvas_anti",1200,900);
+    std::map<int,TH1I*> map01, map02, map03;
+    for (auto&& x : v){
+      if (x->GetName()[0]=='X') map01.emplace(std::atoi(x->GetName()+1)+1,x);
+      else if(x->GetName()[0]=='Y') map02.emplace(std::atoi(x->GetName()+1)+1,x);
+      else map03.emplace(std::atoi(x->GetName()+1)+1,x);
+    }
+    canvas_x->Clear(); canvas_x->Divide(6,10);
+    for (auto&& [x,y] : map01) canvas_x->cd(x), y->Draw();
+    canvas_y->Clear(); canvas_y->Divide(6,10);
+    for (auto&& [x,y] : map02) canvas_y->cd(x), y->Draw();
+    canvas_anti->Clear(); canvas_anti->Divide(2,4);
+    for (auto&& [x,y] : map03) canvas_anti->cd(x), y->Draw();
+    canvas_x->SaveAs(px_name.c_str());
+    canvas_y->SaveAs(py_name.c_str());
+    canvas_anti->SaveAs(pz_name.c_str());
+  }
 
   void get_baseline(){
     m_baseline_table.clear();
@@ -368,13 +397,8 @@ struct signal_handler{
 
       std::stringstream sstr(""); sstr<<util::config::channels_map[x];
       auto* f1 = new TH1I(sstr.str().c_str(),sstr.str().c_str()
-          ,(int)6*ms.second,ms.first-3*ms.second,ms.first+3*ms.second);
+          ,(int)3*ms.second,ms.first-3*ms.second,ms.first+3*ms.second);
       for(auto&& x : buf) f1->Fill(x);
-      if(sstr.str()[0]=='A'){
-        for (auto iter = buf.begin(); iter != buf.end(); iter += 1024){
-        }
-
-      }
       a00.emplace_back(f1);
 
     }
@@ -389,10 +413,9 @@ struct signal_handler{
         for(std::size_t j=0; auto&& y0 : y){
           auto* gr = util::to_root_graph(y0.begin(),y0.end());
           std::stringstream sstr1;
-          sstr1.clear(); sstr1<<i<<"_"<<j;
+          sstr1.clear(); sstr1<<i<<"_"<<j++;
           gr->SetName(sstr1.str().c_str());
           gr->SetTitle(sstr1.str().c_str());
-          j++;
           folder->Add(gr);
         }
         ++i;
@@ -402,17 +425,21 @@ struct signal_handler{
       auto* h1_sigma = new TH1F("sigma","sigma",500,0,100);
       for (auto&& [x,y] : m_baseline_table) h1_mean->Fill(y.mean), h1_sigma->Fill(y.sigma);
 
+      std::string txt_name = m_baseline_name.substr(0,m_baseline_name.find_last_of("."))+".txt";
+      std::ofstream of_text(txt_name.c_str());
+      std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+      of_text<<"#baseline txt of "
+        <<std::put_time(std::localtime(&t), "%c %Z")<<"\n";
+      //of_text<<"#adc_name\tmean\tsigma\tChi/NDF\n";
+      of_text<<"#adc_name\tmean\tsigma\n";
       for (auto&& x :a00){
         auto* f1 = new TF1("f1","gaus",x->GetMean()-3*x->GetRMS(), x->GetMean()+3*x->GetRMS());
         x->Fit(f1,"RQ");
-        x->Write();
-      }
-
-
-
-
+        of_text<<x->GetName()<<"\t"<<f1->GetParameter(1)<<"\t"<<f1->GetParameter(2)<<"\n"; }
+      if (_is_draw_baseline) draw(a00,"baseline_X.pdf","baseline_Y.pdf","baseline_anti.pdf");
       h1_mean->Write(); h1_sigma->Write();
       fout->Write(); fout->Close();
+      of_text.close();
     }else{
       for (auto&& x : a00) delete x;
     } 
@@ -534,7 +561,15 @@ struct signal_handler{
       sum_anti->Write();
       file->Write(); file->Close();
     }
+    if (_is_draw_signal){
+      std::vector<TH1I*> buf; for(auto&& x : a00) buf.emplace_back(x.second);
+      draw(buf,"signal_X.pdf","signal_Y.pdf","signal_anti.pdf");
+      TCanvas* c1 = new TCanvas("c1","c1",800,600);
+      c1->cd(); sum_anti->Rebin(8); sum_anti->Draw();
+      c1->SaveAs("Anti.pdf");
+    }
   }
+
 
 
   void get_status(){
@@ -913,12 +948,14 @@ int main(int argc, char* argv[]){
 
   //handler.baseline_viewer(true);
   handler.baseline_viewer(true);
+  handler.draw_baseline(true);
   handler.get_baseline();
   info_out("baseline unpack finish");
  
 
   handler.file_name(fname_signal);
   handler.signal_viewer(true);
+  handler.draw_signal(true);
   handler.get_signal(); //TODO
   info_out("signal unpack finish");
 
