@@ -87,10 +87,8 @@ constexpr static float const drift_speed = 3.5; //cm/us
 constexpr static uint16_t const wave_sampling_interval = 40; // ns/per //TODO 
 }
 
-inline float adc_to_charge(float adc){
-  return adc<105. ? 0.0206*adc : adc<330. ? 0.008*adc+1.421 :
-    0.0069*adc+1.423;
-}
+inline float adc_to_charge(float adc){ 
+  return adc<105. ? 0.0206*adc : adc<330. ? 0.008*adc+1.421 : 0.0069*adc+1.423; }
 
 
 
@@ -166,7 +164,7 @@ void read_int(_tp& data, char*& iter){
   for (int i=sizeof(_tp)-1; i>=0; --i) rt[i] = *iter++;
   data = *reinterpret_cast<_tp*>(rt);}
 
-void read(uint8_t& data, char*& iter){ data = *iter++; }
+void read_int(uint8_t& data, char*& iter){ data = *iter++; }
 
 struct baseline{
   typedef baseline self_t;
@@ -305,6 +303,11 @@ public:
   std::condition_variable _is_cv_not_empty;
 };
 
+struct painter{
+  std::string m_name;
+
+};
+
 template <class _tp, class _up>
 struct signal_handler{
   typedef _tp baseline_pack_t;
@@ -312,8 +315,10 @@ struct signal_handler{
   std::string m_file_name;
   std::string m_baseline_name;
   bool _is_baseline_viewer = false;
+  bool _is_signal_viewer = false;
 
   void baseline_viewer(bool v) {_is_baseline_viewer = v;}
+  void signal_viewer(bool v) {_is_signal_viewer = v;}
 
   struct mean_sigma{
     float mean;
@@ -338,7 +343,7 @@ struct signal_handler{
     in_stream.seekg(0,std::ios_base::beg);
     in_stream.read(file_buf,fsz);
     baseline_pack_t parser;
-    std::unordered_map<size_t, std::vector<std::array<uint16_t,1024 >>> channel_adcs;
+    std::unordered_map<size_t, std::vector<std::array<uint16_t,1024>>> channel_adcs;
     for (auto iter = file_buf; (size_t)std::distance(file_buf,iter)<fsz; ){
       if (parser.parse(iter)){
         std::array<uint16_t,1024> adcs;
@@ -347,11 +352,25 @@ struct signal_handler{
         channel_adcs[parser.get_channel_id()].emplace_back(adcs);
       }
     }
+    
     //boost::timer::auto_cpu_timer progress;
+
+
+    std::vector<TH1I*> a00;
+    
     for (auto&& [x,y] : channel_adcs){
       std::vector<uint16_t> buf(y.size()*1024);
       for (size_t i=0; auto&& y0 : y) std::copy(y0.begin(),y0.end(),buf.begin()+1024*i++);
-      m_baseline_table[x].set(util::math::mean_and_standard_deviation(buf.begin(),buf.end()));
+      auto ms = util::math::mean_and_standard_deviation(buf.begin(),buf.end());
+      m_baseline_table[x].set(ms);
+
+
+      std::stringstream sstr(""); sstr<<util::config::channels_map[x];
+      auto* f1 = new TH1I(sstr.str().c_str(),sstr.str().c_str()
+          ,(int)6*ms.second,ms.first-3*ms.second,ms.first+3*ms.second);
+      for(auto&& x : buf) f1->Fill(x);
+      a00.emplace_back(f1);
+
     }
     in_stream.close();
     delete file_buf;
@@ -377,9 +396,16 @@ struct signal_handler{
       auto* h1_sigma = new TH1F("sigma","sigma",500,0,100);
       for (auto&& [x,y] : m_baseline_table) h1_mean->Fill(y.mean), h1_sigma->Fill(y.sigma);
 
+      for (auto&& x :a00) x->Write();
+
+
+
+
       h1_mean->Write(); h1_sigma->Write();
       fout->Write(); fout->Close();
-    }
+    }else{
+      for (auto&& x : a00) delete x;
+    } 
 
 
   }
@@ -455,6 +481,7 @@ struct signal_handler{
   }
   */
   void get_signal(){
+    if (m_file_name=="") return;
     std::ifstream in_stream(m_file_name.c_str(),std::ios_base::binary);
     in_stream.seekg(0,std::ios_base::end);
     size_t fsz = in_stream.tellg();
@@ -462,15 +489,35 @@ struct signal_handler{
     in_stream.seekg(0,std::ios_base::beg);
     in_stream.read(file_buf,fsz);
     signal_pack_t parser;
+
+    std::map<size_t,TH1I*> a00;
+    if (_is_signal_viewer){
+      for(auto&& [x,y] : util::config::channels_map){
+        std::stringstream sstr; sstr<<y<<"_S";
+        a00.emplace(x,new TH1I(sstr.str().c_str(),
+              sstr.str().c_str(),4096,0,4096));
+      }
+    }
+    
+
     for (auto iter = file_buf; (size_t)std::distance(file_buf,iter)<fsz; ){
-      if (parser.parse(iter))
-        std::transform(std::begin(parser.adc),std::end(parser.adc),std::begin(
-         m_signal_table[parser.get_event_id()][parser.get_channel_id()])
+      if (parser.parse(iter)){
+        auto& ref = m_signal_table[parser.get_event_id()][parser.get_channel_id()];
+        std::transform(std::begin(parser.adc),std::end(parser.adc),std::begin(ref)
             ,[](uint16_t a){return (uint16_t)(a&0x0FFF);});
+        if (_is_signal_viewer) a00[parser.get_channel_id()]->Fill(
+            *std::max_element(std::begin(ref),std::end(ref)));
+      }
     }
 
-    delete []file_buf;
+    delete[] file_buf;
     in_stream.close();
+    if (_is_signal_viewer){
+      auto* file = new TFile("signal.root","recreate");
+      file->cd();
+      for (auto&& [x,y] : a00 ) y->Write();
+      file->Write(); file->Close();
+    }
   }
 
 
@@ -712,7 +759,7 @@ struct rec_data : public rec_data_store{
     std::vector<double> array_buf_x, array_buf_y;
     for (auto&& [x,y] : points_x)
       array_buf_x.emplace_back((double)x), array_buf_y.emplace_back((double)y);
-    m_rho_x = array_buf_x.size()>=2 ? boost::math::statistics::correlation_coefficient(array_buf_x,array_buf_y) : 0.;
+    m_rho_x = array_buf_x.size()>=2 ?boost::math::statistics::correlation_coefficient(array_buf_x,array_buf_y) : 0.;
     array_buf_x.clear(), array_buf_y.clear();
     for (auto&& [x,y] : points_y)
       array_buf_x.emplace_back((double)x), array_buf_y.emplace_back((double)y);
@@ -830,261 +877,137 @@ private:
 using std::cout; using std::endl; using std::string; using std::vector;
 int main(int argc, char* argv[]){
   signal_handler<baseline,baseline> handler;
-  std::string fname = argv[1];
+
+
+  std::string fname, fname_signal;
+
+  if (argc>=2) fname = argv[1];
   //std::string fname_signal = "/home/wangying/work/alphabetatpc_v2/data/20240605165343_signal_Sr90_1min.dat";
-  std::string fname_signal = argv[2];
+  if (argc>=3) fname_signal = argv[2];
   //
   handler.baseline_name(fname);
+
+  //handler.baseline_viewer(true);
   handler.baseline_viewer(true);
   handler.get_baseline();
   info_out("baseline unpack finish");
  
 
   handler.file_name(fname_signal);
+  handler.signal_viewer(true);
   handler.get_signal(); //TODO
   info_out("signal unpack finish");
 
 
 
 
- #ifdef raw_to_raw
+#ifdef raw_to_raw
   {
 
-//    //auto* channel_rf = new TFile("../data/20240605143910_baseline.root");
-//    auto* tTree = static_cast<TTree*>(channel_rf->Get("tree"));
-//    uint16_t lu16PacketSize;
-//    uint32_t lu32EventID;
-//    uint8_t lu8TriggerChannelNumber;
-//    uint8_t lu8ChannelIndex;
-//    uint16_t lau16ADCdata[1024];
-//    uint32_t lu32CRC;
-//    uint32_t lu32EventIndex;
-//    uint16_t lu16MeanOfBaseline;
-//    double ldSigmaOfBaseline;
-//    uint16_t lu16PeakOfSignal;
-//    uint16_t lu16Peak2PeakOfSignal;
-//    ULong64_t lu64ChargeOfEvent;
-//    uint16_t lu16IndexOfPeak;
-//    uint16_t lu16IndexOfHalfMax;
-//    tTree->SetBranchAddress("PacketSize", &lu16PacketSize);
-//    tTree->SetBranchAddress("EventID", &lu32EventID);
-//    tTree->SetBranchAddress("TriggerChannelNumber", &lu8TriggerChannelNumber);
-//    tTree->SetBranchAddress("ChannelIndex", &lu8ChannelIndex);
-//    tTree->SetBranchAddress("ADCdata", lau16ADCdata);
-//    tTree->SetBranchAddress("CRC", &lu32CRC);
-//
-//    tTree->SetBranchAddress("EventIndex", &lu32EventIndex);
-//    tTree->SetBranchAddress("MeanOfBaseline", &lu16MeanOfBaseline);
-//    tTree->SetBranchAddress("SigmaOfBaseline", &ldSigmaOfBaseline);
-//    tTree->SetBranchAddress("PeakOfSignal", &lu16PeakOfSignal);
-//    tTree->SetBranchAddress("Peak2PeakOfSignal", &lu16Peak2PeakOfSignal);
-//    tTree->SetBranchAddress("ChargeOfEvent", &lu64ChargeOfEvent);
-//    tTree->SetBranchAddress("IndexOfPeak", &lu16IndexOfPeak);
-//    tTree->SetBranchAddress("IndexOfHalfMax", &lu16IndexOfHalfMax);
-//
-// // std::unordered_map<size_t,std::unordered_map<uint8_t,std::vector<uint16_t>>> evt_adcs;
-//  std::unordered_map<size_t,std::unordered_map<uint8_t,std::array<uint16_t,1024>>> evt_adcs;
-//  info_out(tTree->GetEntries());
-//
-//  {
-//    boost::timer::auto_cpu_timer progress;
-//    for (decltype(tTree->GetEntries()) i=0; i<tTree->GetEntries(); ++i){
-//      tTree->GetEntry(i);
-//      std::copy(std::begin(lau16ADCdata),std::end(lau16ADCdata)
-//          ,std::begin(evt_adcs[lu32EventID][lu8ChannelIndex]));
-//      if (i%100000==0) info_out("=======>");
-//#ifdef TEST
-//      if (i%20000==0) break;
-//#endif
-//    }
-//  }
-//  info_out(evt_adcs.size());
-//
-//
-
-
-
-  //for (size_t i=0; auto&& x : evt_adcs){
-  //  info_out(x.second.size());
-  //  if (i++%25000==0){
-  //    for(auto&& y : x.second){
-  //      auto wave = y.second;
-  //      auto* gr = new TGraph();
-  //      for (size_t j=0; auto&& z : wave){
-  //        gr->SetPoint(j,j,z);
-  //        j++;
-  //      }
-  //      gr->Write();
-  //    }
-
-
-  //  }
-  //}
-
-  auto* file_out = new TFile("raw_reco.root","recreate");
-
-  adc_data_t data_frame;
-  auto* raw_tree = new TTree("data","data");
-  data_frame.link_in_tree(raw_tree);
-
-  rec_data reconstructor;
-  reconstructor.eledata_handlder = &handler;
-  auto* reco_tree = new TTree("reco_data","reco_data");
-  reconstructor.link_out_tree(reco_tree);
-  reconstructor.init_histo();
-  std::vector<TGraph*> graphs;
-
-
-
-  size_t index_01 = 0;
-  {
-    boost::timer::auto_cpu_timer progress;
-    for(auto&& [x,y] : handler.m_signal_table){
-      data_frame.clear();
-      data_frame.n_hits = y.size();
-      data_frame.fec.resize(y.size());
-      data_frame.chip.resize(y.size());
-      data_frame.chn.resize(y.size());
-      data_frame.event_id = x;
-      //info_out(x);
-      for (auto&& [y0,y1] : y){
-        data_frame.channels.emplace_back(y0);
-        for (auto&& y10 : y1) data_frame.adcs.emplace_back(y10);
-        auto cname = util::config::channels_map[y0];
-        if (cname[0]=='A'){
-          data_frame.sum_adc.emplace_back(0);
-          data_frame.max_adc.emplace_back(0);
-          data_frame.max_point.emplace_back(0.);
-          data_frame.pixel_x.emplace_back(-1);
-          data_frame.pixel_y.emplace_back(-1);
-        }else if(cname[0]=='X'){
-          data_frame.sum_adc.emplace_back(
-              std::accumulate(std::begin(y1),std::end(y1),(uint32_t)0));
-          data_frame.summax_adc += data_frame.sum_adc.back();
-          auto max_iter = std::max_element(std::begin(y1),std::end(y1));
-          data_frame.max_adc.emplace_back(*max_iter);
-          data_frame.max_point.emplace_back((float)std::distance(std::begin(y1),max_iter));
-          data_frame.pixel_x.emplace_back(std::atoi(cname.substr(1).c_str()));
-          data_frame.pixel_y.emplace_back(0);
-        }else if(cname[0]=='Y'){
-          data_frame.sum_adc.emplace_back(
-              std::accumulate(std::begin(y1),std::end(y1),(uint32_t)0));
-          data_frame.summax_adc += data_frame.sum_adc.back();
-          auto max_iter = std::max_element(std::begin(y1),std::end(y1));
-          data_frame.max_adc.emplace_back(*max_iter);
-          data_frame.max_point.emplace_back((float)std::distance(std::begin(y1),max_iter));
-          data_frame.pixel_y.emplace_back(std::atoi(cname.substr(1).c_str()));
-          data_frame.pixel_x.emplace_back(0);
+    auto* file_out = new TFile("raw_reco.root","recreate");
+   
+    adc_data_t data_frame;
+    auto* raw_tree = new TTree("data","data");
+    data_frame.link_in_tree(raw_tree);
+   
+    rec_data reconstructor;
+    reconstructor.eledata_handlder = &handler;
+    auto* reco_tree = new TTree("reco_data","reco_data");
+    reconstructor.link_out_tree(reco_tree);
+    reconstructor.init_histo();
+    std::vector<TGraph*> graphs;
+   
+   
+   
+    size_t index_01 = 0;
+    {
+      boost::timer::auto_cpu_timer progress;
+      for(auto&& [x,y] : handler.m_signal_table){
+        data_frame.clear();
+        data_frame.n_hits = y.size();
+        data_frame.fec.resize(y.size());
+        data_frame.chip.resize(y.size());
+        data_frame.chn.resize(y.size());
+        data_frame.event_id = x;
+        //info_out(x);
+        for (auto&& [y0,y1] : y){
+          data_frame.channels.emplace_back(y0);
+          for (auto&& y10 : y1) data_frame.adcs.emplace_back(y10);
+          auto cname = util::config::channels_map[y0];
+          if (cname[0]=='A'){
+            data_frame.sum_adc.emplace_back(0);
+            data_frame.max_adc.emplace_back(0);
+            data_frame.max_point.emplace_back(0.);
+            data_frame.pixel_x.emplace_back(-1);
+            data_frame.pixel_y.emplace_back(-1);
+          }else if(cname[0]=='X'){
+            data_frame.sum_adc.emplace_back(
+                std::accumulate(std::begin(y1),std::end(y1),(uint32_t)0));
+            data_frame.summax_adc += data_frame.sum_adc.back();
+            auto max_iter = std::max_element(std::begin(y1),std::end(y1));
+            data_frame.max_adc.emplace_back(*max_iter);
+            data_frame.max_point.emplace_back((float)std::distance(std::begin(y1),max_iter));
+            data_frame.pixel_x.emplace_back(std::atoi(cname.substr(1).c_str()));
+            data_frame.pixel_y.emplace_back(0);
+          }else if(cname[0]=='Y'){
+            data_frame.sum_adc.emplace_back(
+                std::accumulate(std::begin(y1),std::end(y1),(uint32_t)0));
+            data_frame.summax_adc += data_frame.sum_adc.back();
+            auto max_iter = std::max_element(std::begin(y1),std::end(y1));
+            data_frame.max_adc.emplace_back(*max_iter);
+            data_frame.max_point.emplace_back((float)std::distance(std::begin(y1),max_iter));
+            data_frame.pixel_y.emplace_back(std::atoi(cname.substr(1).c_str()));
+            data_frame.pixel_x.emplace_back(0);
+          }
         }
-      }
-      if (index_01%1000==0){
-        TGraph* gr = new TGraph();
-        for(size_t i=1; auto&& x : data_frame.adcs) gr->SetPoint(i,i++,x);
-        graphs.emplace_back(gr);
-        std::string name_buf = std::to_string(index_01);
-        auto* folder = new TFolder(name_buf.c_str(),name_buf.c_str());
-        for (decltype(data_frame.n_hits) i=0; i<data_frame.n_hits; ++i){
-          auto wave = data_frame.get_wave(i);
-          auto* gr = util::to_root_graph(wave.begin(),wave.end());
-          std::stringstream sstr; sstr<<index_01<<"_"<<i;
-          gr->SetName(sstr.str().c_str()); gr->SetTitle(sstr.str().c_str());
-          folder->Add(gr);
+        if (index_01%1000==0){
+          TGraph* gr = new TGraph();
+          for(size_t i=1; auto&& x : data_frame.adcs) gr->SetPoint(i,i++,x);
+          graphs.emplace_back(gr);
+          std::string name_buf = std::to_string(index_01);
+          auto* folder = new TFolder(name_buf.c_str(),name_buf.c_str());
+          for (decltype(data_frame.n_hits) i=0; i<data_frame.n_hits; ++i){
+            auto wave = data_frame.get_wave(i);
+            auto* gr = util::to_root_graph(wave.begin(),wave.end());
+            std::stringstream sstr; sstr<<index_01<<"_"<<i;
+            gr->SetName(sstr.str().c_str()); gr->SetTitle(sstr.str().c_str());
+            folder->Add(gr);
+          }
+          folder->Write();
+   
+   
+          
+   
+   
+          //info_out(data_frame.adcs.size());
         }
-        folder->Write();
-
-
-        
-
-
-        //info_out(data_frame.adcs.size());
+        data_frame.fill(raw_tree);
+        reconstructor.reco(data_frame);
+        reco_tree->Fill();
+   
+        //if (index_01==20000){
+        //  for(int i=0; i<data_frame.n_hits; ++i){
+        //    auto wave = data_frame.get_wave(i);
+        //    auto* gr = new TGraph();
+        //    for(size_t i=1; auto&& x : wave) gr->SetPoint(i,i++,x);
+        //    graphs.emplace_back(gr);
+        //  }
+        //}
+   
+        if (index_01%10000==0) info_out("<========");
+        //if (index_01%10000==0 && index_01!=0) {info_out("<========"); break;}
+        index_01++;
       }
-      data_frame.fill(raw_tree);
-      reconstructor.reco(data_frame);
-      reco_tree->Fill();
-
-      //if (index_01==20000){
-      //  for(int i=0; i<data_frame.n_hits; ++i){
-      //    auto wave = data_frame.get_wave(i);
-      //    auto* gr = new TGraph();
-      //    for(size_t i=1; auto&& x : wave) gr->SetPoint(i,i++,x);
-      //    graphs.emplace_back(gr);
-      //  }
-      //}
-
-      if (index_01%10000==0) info_out("<========");
-      //if (index_01%10000==0 && index_01!=0) {info_out("<========"); break;}
-      index_01++;
     }
-  }
-  info_out(raw_tree->GetEntries());
-  file_out->cd();
-
-  //for (auto&& x : graphs) x->Write();
-  reco_tree->Write();
-  raw_tree->Write();
-  file_out->Write(); file_out->Close();
-  //reconstructor.draw("viewer.root");
-  }
-#endif
-
-#ifdef raw_to_reco
-  {
-
-  //std::string fname_raw = "raw.root";
-  //std::string fname_reco = "reco.root";
-  //auto* fin_raw = new TFile(fname_raw.c_str());
-  //auto* fout_reco = new TFile(fname_reco.c_str(),"recreate");
-
-  //auto* raw_data_tree = static_cast<TTree*>(fin_raw->Get("data"));
-  //adc_data_t raw_data; 
-  ////raw_data.link_out_tree(raw_data_tree);
-  //struct raw_vec_ptrs{
-  //  std::vector<int>* fec;
-  //  std::vector<int>* chip;
-  //  std::vector<int>* chn;
-  //  std::vector<uint8_t>* channels;
-  //  std::vector<uint16_t>* adcs;
-  //  std::vector<uint32_t>* sum_adc;
-  //  std::vector<uint16_t>* max_adc;
-  //  std::vector<int>* max_point;
-  //  std::vector<int>* pixel_x,* pixel_y;
-
-  //  void link_in_tree(TTree* tree){
-  //  tree->SetBranchAddress("Fec",&fec);
-  //  //tree->SetBranchAddress("Chip",&chip);
-  //  //tree->SetBranchAddress("Chn",&chn);
-  //  tree->SetBranchAddress("Channel",&channels);
-  //  //tree->SetBranchAddress("ADC",&adcs);
-  //  //tree->SetBranchAddress("sumADC",&sum_adc);
-  //  //tree->SetBranchAddress("maxADC",&max_adc);
-  //  //tree->SetBranchAddress("maxPoint",&max_point);
-  //  //tree->SetBranchAddress("pixelX",&pixel_x);
-  //  //tree->SetBranchAddress("pixelY",&pixel_y);
-
-  //  }
-
-
-
-
-  //};
-  //raw_vec_ptrs raw_data_vecs;
-  //raw_data_vecs.link_in_tree(raw_data_tree);
-
-  //rec_data reconstructor;
-  //auto* reco_data_tree = new TTree("data","data");
-  //reconstructor.link_out_tree(reco_data_tree);
-  //for (decltype(raw_data_tree->GetEntries()) i=0; i<raw_data_tree->GetEntries(); ++i){
-  //  raw_data_tree->GetEntry(i);
-  //  //reconstructor.reco(raw_data);
-  //  //reco_data_tree->Fill();
-
-  //  break;
-  //}
-  //fout_reco->cd();
-  //reco_data_tree->Write();
-  //fout_reco->Write(); fout_reco->Close();
-
-  }
+    info_out(raw_tree->GetEntries());
+    file_out->cd();
+   
+    //for (auto&& x : graphs) x->Write();
+    reco_tree->Write();
+    raw_tree->Write();
+    file_out->Write(); file_out->Close();
+    //reconstructor.draw("viewer.root");
+    }
 #endif
 
   return 0;
