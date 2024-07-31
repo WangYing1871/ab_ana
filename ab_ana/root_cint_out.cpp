@@ -1,6 +1,6 @@
 // Do NOT change. Changes will be lost next time file is generated
 
-#define R__DICTIONARY_FILENAME root_cint_out
+#define R__DICTIONARY_FILENAME dIhomedIwangyingdIdesktopdIab_softdIzhangrydIanalysiscode_version6_2dIab_anadIroot_cint_out
 #define R__NO_DEPRECATION
 
 /*******************************************************************/
@@ -133,6 +133,51 @@ namespace ROOT {
 } // end of namespace ROOT
 
 namespace ROOT {
+   static TClass *entry_Dictionary();
+   static void entry_TClassManip(TClass*);
+   static void *new_entry(void *p = nullptr);
+   static void *newArray_entry(Long_t size, void *p);
+   static void delete_entry(void *p);
+   static void deleteArray_entry(void *p);
+   static void destruct_entry(void *p);
+
+   // Function generating the singleton type initializer
+   static TGenericClassInfo *GenerateInitInstanceLocal(const ::entry*)
+   {
+      ::entry *ptr = nullptr;
+      static ::TVirtualIsAProxy* isa_proxy = new ::TIsAProxy(typeid(::entry));
+      static ::ROOT::TGenericClassInfo 
+         instance("entry", "data_strcut_cint.h", 35,
+                  typeid(::entry), ::ROOT::Internal::DefineBehavior(ptr, ptr),
+                  &entry_Dictionary, isa_proxy, 0,
+                  sizeof(::entry) );
+      instance.SetNew(&new_entry);
+      instance.SetNewArray(&newArray_entry);
+      instance.SetDelete(&delete_entry);
+      instance.SetDeleteArray(&deleteArray_entry);
+      instance.SetDestructor(&destruct_entry);
+      return &instance;
+   }
+   TGenericClassInfo *GenerateInitInstance(const ::entry*)
+   {
+      return GenerateInitInstanceLocal(static_cast<::entry*>(nullptr));
+   }
+   // Static variable to force the class initialization
+   static ::ROOT::TGenericClassInfo *_R__UNIQUE_DICT_(Init) = GenerateInitInstanceLocal(static_cast<const ::entry*>(nullptr)); R__UseDummy(_R__UNIQUE_DICT_(Init));
+
+   // Dictionary for non-ClassDef classes
+   static TClass *entry_Dictionary() {
+      TClass* theClass =::ROOT::GenerateInitInstanceLocal(static_cast<const ::entry*>(nullptr))->GetClass();
+      entry_TClassManip(theClass);
+   return theClass;
+   }
+
+   static void entry_TClassManip(TClass* ){
+   }
+
+} // end of namespace ROOT
+
+namespace ROOT {
    // Wrappers around operator new
    static void *new_waveform_pack(void *p) {
       return  p ? new(p) ::waveform_pack : new ::waveform_pack;
@@ -174,6 +219,27 @@ namespace ROOT {
    }
 } // end of namespace ROOT for class ::tq_pack
 
+namespace ROOT {
+   // Wrappers around operator new
+   static void *new_entry(void *p) {
+      return  p ? new(p) ::entry : new ::entry;
+   }
+   static void *newArray_entry(Long_t nElements, void *p) {
+      return p ? new(p) ::entry[nElements] : new ::entry[nElements];
+   }
+   // Wrapper around operator delete
+   static void delete_entry(void *p) {
+      delete (static_cast<::entry*>(p));
+   }
+   static void deleteArray_entry(void *p) {
+      delete [] (static_cast<::entry*>(p));
+   }
+   static void destruct_entry(void *p) {
+      typedef ::entry current_t;
+      (static_cast<current_t*>(p))->~current_t();
+   }
+} // end of namespace ROOT for class ::entry
+
 namespace {
   void TriggerDictionaryInitialization_root_cint_out_Impl() {
     static const char* headers[] = {
@@ -194,6 +260,7 @@ nullptr
 extern int __Cling_AutoLoading_Map;
 struct __attribute__((annotate("$clingAutoload$data_strcut_cint.h")))  waveform_pack;
 struct __attribute__((annotate("$clingAutoload$data_strcut_cint.h")))  tq_pack;
+struct __attribute__((annotate("$clingAutoload$data_strcut_cint.h")))  entry;
 )DICTFWDDCLS";
     static const char* payloadCode = R"DICTPAYLOAD(
 #line 1 "root_cint_out dictionary payload"
@@ -206,6 +273,7 @@ struct __attribute__((annotate("$clingAutoload$data_strcut_cint.h")))  tq_pack;
 #undef  _BACKWARD_BACKWARD_WARNING_H
 )DICTPAYLOAD";
     static const char* classesHeaders[] = {
+"entry", payloadCode, "@",
 "tq_pack", payloadCode, "@",
 "waveform_pack", payloadCode, "@",
 nullptr

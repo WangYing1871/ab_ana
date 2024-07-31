@@ -43,6 +43,11 @@ std::ostream& waveform::display(std::ostream& os) const{
     <<std::dec
     ; }
 
+void waveform::corr() {
+  m_data.channel_idx=get_channel_id(); m_data.evt_id=get_event_id();
+  for (auto&& x : m_data.adc) x = x&0x0FFF;
+}
+
 bool tq::parse(char*& iter,char* const& end){
   using namespace util;
   read_int(this->m_data.head_tag,iter);
@@ -102,6 +107,7 @@ void unpacking_tool::unpack(){
     for (auto iter = bytes_begin; std::distance(bytes_begin,iter)<end;){
       if(m_parser->parse(iter,nullptr)){
         auto* ptr = dynamic_cast<waveform*>(m_parser);
+        ptr->corr();
         data_strcut_buf = ptr->m_data;
         tree->Fill();
       }else unknow_bytes.emplace_back(iter[-2]), unknow_bytes.emplace_back(iter[-1]);

@@ -32,4 +32,17 @@ struct tq_pack{
   uint16_t tail_tag = 0;
 };
 
+struct entry{
+  uint16_t m_hits;
+  std::vector<uint16_t> m_channels;
+  std::vector<uint16_t> adcs;
+  std::vector<uint32_t> m_sum_adc;
+  std::vector<uint16_t> m_max_adc;
+  std::vector<uint16_t> m_max_point;
+  uint32_t m_sum_max_adc;
+
+  entry& operator=(entry&) = default;
+
+};
+
 #endif

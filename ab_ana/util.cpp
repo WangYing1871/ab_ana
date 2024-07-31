@@ -1,4 +1,5 @@
 #include <bitset>
+#include <cmath>
 #include "util.hpp"
 
 namespace util{
@@ -19,6 +20,10 @@ void compress_adcs(uint16_t* src, size_t count, void* dst){
 
 void uncompress_adcs(void* from,uint16_t* to){
 }
+
+namespace math{
+double gaus(double* x, double* p){
+  return p[0]*std::exp(-(x[0]-p[1])*(x[0]-p[1])/2/p[2]/p[2]);
 }
-
-
+}
+}

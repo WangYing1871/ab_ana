@@ -8,6 +8,7 @@
 
 # pragma link C++ class tq_pack;
 # pragma link C++ class waveform_pack;
+# pragma link C++ class entry;
 #endif
 
 

@@ -15,6 +15,7 @@ include_directories(${PROJECT_SOURCE_DIR}/include
     )
 find_program(ROOTCINT rootcint PATH_SUFFIXES bin REQUIRED)
 set(root_cint_out "root_cint_out.cpp")
+execute_process(COMMAND "${ROOTCINT}" -I ${PROJECT_SOURCE_DIR} -f ${PROJECT_SOURCE_DIR}/${root_cint_out} -c data_strcut_cint.h LinkDef.h)
 execute_process(COMMAND "${ROOTCINT}" -I ${PROJECT_SOURCE_DIR} -f ${root_cint_out} -c data_strcut_cint.h LinkDef.h)
 
 #file(COPY ${root_cint_out} DESTINATION ${PROJECT_SOURCE_DIR})

@@ -32,7 +32,10 @@ std::pair<float, float> mean_and_standard_deviation(_iter_t first, _iter_t last)
   auto rt = std::accumulate(std::next(first),last,std::pow(*first-mean,2)
       ,[&](float a, float b){return a+std::pow(b-mean,2);});
   return std::make_pair(mean,std::sqrt(rt/(count-1)));
+
 }
+double gaus(double*,double*);
+
 }
 namespace config{
 static std::map<int,std::string> channels_map= {

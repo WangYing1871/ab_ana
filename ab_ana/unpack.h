@@ -48,6 +48,9 @@ public:
 
   inline size_t get_channel_id() const{ return m_data.channel_idx&0x00FF; }
   inline size_t get_event_id() const {return (m_data.evt_id<<8)+m_data.trigger_idx;}
+
+  void corr();
+  
 };
 
 struct tq : public parse_base_t{
