@@ -3,4 +3,5 @@ build/
 .*.dat
 Makefile
 backup/
+ab_ana/build/
 main

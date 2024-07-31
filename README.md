@@ -3,3 +3,9 @@
 
 #run
   ./main <baseline_file-name> <signal_file_name>
+
+#ab_ana TODO
+cd ab_ana
+mkdir build
+cd build
+cmake ../ && make
