@@ -1,7 +1,11 @@
 #include <fstream>
 #include <numeric>
+#include <atomic>
+#include <thread>
+#include <chrono>
+#include <iomanip>
 
-#include <boost/timer/timer.hpp>
+//#include <boost/timer/timer.hpp>
 
 #include "data_strcut_cint.h"
 #include "unpack.h"
@@ -93,13 +97,32 @@ void unpacking_tool::unpack(){
   waveform_pack data_strcut_buf;
   tree->Branch("data",&data_strcut_buf);
 
-
-  
-  boost::timer::auto_cpu_timer progress;
+  //boost::timer::auto_cpu_timer progress;
   std::ifstream fin(m_in_file.c_str(),std::ios_base::binary);
+  fin.seekg(0,std::ios_base::end);
+  size_t fsz = fin.tellg();
+  fin.seekg(0,std::ios_base::beg);
   size_t psz = unpacking_tool::s_data_buf_size;
   char* bytes_begin = new char[psz];
   size_t unknow_number = 0;
+  out_file->cd();
+
+  std::atomic<bool> is_file_end(false);
+  std::thread slider([&](){
+      while(!is_file_end.load()){
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        float schedule = fin.tellg()/(double)fsz;
+        std::cout<<"\r\tunpack\t";
+        for (size_t i=0; i<100*schedule; ++i) std::cout.put('=');
+        for (size_t i=100*schedule; i<100; ++i) std::cout.put('-');
+        std::cout<<"\t"<<std::setprecision(4)
+          <<schedule*100<<" %"<<std::flush;}
+      std::cout<<std::endl;
+      });
+  slider.detach();
+
+
+
   while(!fin.eof()){
     std::vector<uint8_t> unknow_bytes;
     fin.read(bytes_begin+unknow_number,psz-unknow_number);
@@ -115,13 +138,16 @@ void unpacking_tool::unpack(){
     unknow_number = unknow_bytes.size();
     std::copy(std::begin(unknow_bytes),std::end(unknow_bytes),bytes_begin);
   }
+  is_file_end.store(true);
   delete[] bytes_begin;
   fin.close();
-  out_file->cd(); tree->Write();
+  tree->Write();
   out_file->Close(); out_file->Write();
 }
+
+
 void unpacking_tool::unpack_fast(){
-  boost::timer::auto_cpu_timer progress;
+  //boost::timer::auto_cpu_timer progress;
   if (!m_parser) return;
   std::ifstream fin(m_in_file.c_str(),std::ios_base::binary);
   fin.seekg(0,std::ios_base::end);

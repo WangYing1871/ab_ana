@@ -3,7 +3,6 @@
 //^-^ Time: 2024-07-31 09:01:47   Posi: Hefei
 //^-^ File: main.cpp
 //--------------------------------------------------------------------
-#define info_out(X) std::cout<<"==> "<<__LINE__<<" "<<#X<<" |"<<(X)<<"|\n"
 #include <algorithm>
 #include <numeric>
 #include <iostream>
@@ -48,11 +47,11 @@ int main(int argc, char* argv[]){
   //std::string dat_fname = "/home/wangying/desktop/ab_soft/data/jw_test/jw_20240726_test/data_accumulation/backGroundData/waveform/20240726180153_signal.dat";
 
 
-  //std::string dat_fname = argv[1];
-  //std::string raw_root_fname = dat_fname.substr(0,dat_fname.find_last_of("."))+"_raw.root";
-  //unpacker.m_in_file = dat_fname;
-  //unpacker.m_out_file = raw_root_fname;
-  //unpacker.unpack();
+  std::string dat_fname = argv[1];
+  std::string raw_root_fname = dat_fname.substr(0,dat_fname.find_last_of("."))+"_raw.root";
+  unpacker.m_in_file = dat_fname;
+  unpacker.m_out_file = raw_root_fname;
+  unpacker.unpack();
 
   /*
   {
@@ -120,11 +119,14 @@ int main(int argc, char* argv[]){
 
   }
   */
-  std::string channel_in_raw_file = argv[1];
+ 
+  //std::string channel_in_raw_file = argv[1];
+  std::string channel_in_raw_file = raw_root_fname;
   std::string entry_out_file = channel_in_raw_file.substr(0,channel_in_raw_file.find_last_of("_"))+"_entry.root";
   to_entry bb;
   bb.m_in_file = channel_in_raw_file;
   bb.m_out_file = entry_out_file;
+  bb.is_print_pdf(true);
   bb.run();
   
 

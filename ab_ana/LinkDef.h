@@ -9,6 +9,7 @@
 # pragma link C++ class tq_pack;
 # pragma link C++ class waveform_pack;
 # pragma link C++ class entry;
+# pragma link C++ class collection_tree;
 #endif
 
 

@@ -57,7 +57,7 @@ namespace ROOT {
       ::waveform_pack *ptr = nullptr;
       static ::TVirtualIsAProxy* isa_proxy = new ::TIsAProxy(typeid(::waveform_pack));
       static ::ROOT::TGenericClassInfo 
-         instance("waveform_pack", "data_strcut_cint.h", 7,
+         instance("waveform_pack", "data_strcut_cint.h", 8,
                   typeid(::waveform_pack), ::ROOT::Internal::DefineBehavior(ptr, ptr),
                   &waveform_pack_Dictionary, isa_proxy, 0,
                   sizeof(::waveform_pack) );
@@ -102,7 +102,7 @@ namespace ROOT {
       ::tq_pack *ptr = nullptr;
       static ::TVirtualIsAProxy* isa_proxy = new ::TIsAProxy(typeid(::tq_pack));
       static ::ROOT::TGenericClassInfo 
-         instance("tq_pack", "data_strcut_cint.h", 21,
+         instance("tq_pack", "data_strcut_cint.h", 22,
                   typeid(::tq_pack), ::ROOT::Internal::DefineBehavior(ptr, ptr),
                   &tq_pack_Dictionary, isa_proxy, 0,
                   sizeof(::tq_pack) );
@@ -147,7 +147,7 @@ namespace ROOT {
       ::entry *ptr = nullptr;
       static ::TVirtualIsAProxy* isa_proxy = new ::TIsAProxy(typeid(::entry));
       static ::ROOT::TGenericClassInfo 
-         instance("entry", "data_strcut_cint.h", 35,
+         instance("entry", "data_strcut_cint.h", 36,
                   typeid(::entry), ::ROOT::Internal::DefineBehavior(ptr, ptr),
                   &entry_Dictionary, isa_proxy, 0,
                   sizeof(::entry) );
@@ -173,6 +173,51 @@ namespace ROOT {
    }
 
    static void entry_TClassManip(TClass* ){
+   }
+
+} // end of namespace ROOT
+
+namespace ROOT {
+   static TClass *collection_tree_Dictionary();
+   static void collection_tree_TClassManip(TClass*);
+   static void *new_collection_tree(void *p = nullptr);
+   static void *newArray_collection_tree(Long_t size, void *p);
+   static void delete_collection_tree(void *p);
+   static void deleteArray_collection_tree(void *p);
+   static void destruct_collection_tree(void *p);
+
+   // Function generating the singleton type initializer
+   static TGenericClassInfo *GenerateInitInstanceLocal(const ::collection_tree*)
+   {
+      ::collection_tree *ptr = nullptr;
+      static ::TVirtualIsAProxy* isa_proxy = new ::TIsAProxy(typeid(::collection_tree));
+      static ::ROOT::TGenericClassInfo 
+         instance("collection_tree", "data_strcut_cint.h", 51,
+                  typeid(::collection_tree), ::ROOT::Internal::DefineBehavior(ptr, ptr),
+                  &collection_tree_Dictionary, isa_proxy, 0,
+                  sizeof(::collection_tree) );
+      instance.SetNew(&new_collection_tree);
+      instance.SetNewArray(&newArray_collection_tree);
+      instance.SetDelete(&delete_collection_tree);
+      instance.SetDeleteArray(&deleteArray_collection_tree);
+      instance.SetDestructor(&destruct_collection_tree);
+      return &instance;
+   }
+   TGenericClassInfo *GenerateInitInstance(const ::collection_tree*)
+   {
+      return GenerateInitInstanceLocal(static_cast<::collection_tree*>(nullptr));
+   }
+   // Static variable to force the class initialization
+   static ::ROOT::TGenericClassInfo *_R__UNIQUE_DICT_(Init) = GenerateInitInstanceLocal(static_cast<const ::collection_tree*>(nullptr)); R__UseDummy(_R__UNIQUE_DICT_(Init));
+
+   // Dictionary for non-ClassDef classes
+   static TClass *collection_tree_Dictionary() {
+      TClass* theClass =::ROOT::GenerateInitInstanceLocal(static_cast<const ::collection_tree*>(nullptr))->GetClass();
+      collection_tree_TClassManip(theClass);
+   return theClass;
+   }
+
+   static void collection_tree_TClassManip(TClass* ){
    }
 
 } // end of namespace ROOT
@@ -240,6 +285,27 @@ namespace ROOT {
    }
 } // end of namespace ROOT for class ::entry
 
+namespace ROOT {
+   // Wrappers around operator new
+   static void *new_collection_tree(void *p) {
+      return  p ? new(p) ::collection_tree : new ::collection_tree;
+   }
+   static void *newArray_collection_tree(Long_t nElements, void *p) {
+      return p ? new(p) ::collection_tree[nElements] : new ::collection_tree[nElements];
+   }
+   // Wrapper around operator delete
+   static void delete_collection_tree(void *p) {
+      delete (static_cast<::collection_tree*>(p));
+   }
+   static void deleteArray_collection_tree(void *p) {
+      delete [] (static_cast<::collection_tree*>(p));
+   }
+   static void destruct_collection_tree(void *p) {
+      typedef ::collection_tree current_t;
+      (static_cast<current_t*>(p))->~current_t();
+   }
+} // end of namespace ROOT for class ::collection_tree
+
 namespace {
   void TriggerDictionaryInitialization_root_cint_out_Impl() {
     static const char* headers[] = {
@@ -261,6 +327,7 @@ extern int __Cling_AutoLoading_Map;
 struct __attribute__((annotate("$clingAutoload$data_strcut_cint.h")))  waveform_pack;
 struct __attribute__((annotate("$clingAutoload$data_strcut_cint.h")))  tq_pack;
 struct __attribute__((annotate("$clingAutoload$data_strcut_cint.h")))  entry;
+struct __attribute__((annotate("$clingAutoload$data_strcut_cint.h")))  collection_tree;
 )DICTFWDDCLS";
     static const char* payloadCode = R"DICTPAYLOAD(
 #line 1 "root_cint_out dictionary payload"
@@ -273,6 +340,7 @@ struct __attribute__((annotate("$clingAutoload$data_strcut_cint.h")))  entry;
 #undef  _BACKWARD_BACKWARD_WARNING_H
 )DICTPAYLOAD";
     static const char* classesHeaders[] = {
+"collection_tree", payloadCode, "@",
 "entry", payloadCode, "@",
 "tq_pack", payloadCode, "@",
 "waveform_pack", payloadCode, "@",

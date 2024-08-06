@@ -2,7 +2,10 @@ build/
 .*.swp
 .*.dat
 Makefile
+baseline.root
 backup/
 ab_ana/build/
 ab_ana/test
+ab_ana/root_cint_out.cpp
+ab_ana/root_cint_out_rdict.pcm
 main

@@ -16,7 +16,8 @@ struct to_entry{
   bool _is_print_pdf = false;
   bool _is_del_baseline = false;
 
-  std::unordered_map<int,std::pair<float,float>> m_baseline;
+  std::unordered_map<uint16_t,std::pair<float,float>> m_baseline;
+  std::unordered_map<uint16_t,entry> m_entry_map;
   //std::function<bool()>
 
 
@@ -24,6 +25,10 @@ struct to_entry{
   ~to_entry() = default;
 
   void run();
+
+public:
+  void is_print_pdf(bool v) {_is_print_pdf = v;}
+  void out_pdf_name(std::string const& v) {m_out_pdf = v;}
 
 
 };
