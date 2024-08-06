@@ -4,6 +4,7 @@
 #include <thread>
 #include <chrono>
 #include <iomanip>
+#include <stdexcept>
 
 //#include <boost/timer/timer.hpp>
 
@@ -123,18 +124,23 @@ void unpacking_tool::unpack(){
 
 
 
+
   while(!fin.eof()){
     std::vector<uint8_t> unknow_bytes;
     fin.read(bytes_begin+unknow_number,psz-unknow_number);
     size_t end = fin.gcount()+unknow_number;
+    size_t pack_get = 0;
     for (auto iter = bytes_begin; std::distance(bytes_begin,iter)<end;){
       if(m_parser->parse(iter,nullptr)){
+        pack_get++;
         auto* ptr = dynamic_cast<waveform*>(m_parser);
         ptr->corr();
         data_strcut_buf = ptr->m_data;
         tree->Fill();
       }else unknow_bytes.emplace_back(iter[-2]), unknow_bytes.emplace_back(iter[-1]);
     }
+    if (pack_get==0)
+      throw std::invalid_argument("32MB data hasn't get any package. please check.");
     unknow_number = unknow_bytes.size();
     std::copy(std::begin(unknow_bytes),std::end(unknow_bytes),bytes_begin);
   }
