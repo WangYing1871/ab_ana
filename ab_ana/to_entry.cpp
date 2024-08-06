@@ -114,21 +114,22 @@ void to_entry::run(){
   long long entry_index;
   long long total_entries = tree->GetEntries();
   std::atomic<bool> is_loop_end(false);
-  std::thread slider([&,this](){
-      while(!is_loop_end.load()){
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        std::cout<<"\r\tto_entry\t";
-        float schedule = entry_index/(float)total_entries;
-        for (int i=0; i<schedule*100; ++i) std::cout.put('=');
-        for (int i=schedule*100; i<100; ++i) std::cout.put('-');
+  //std::thread slider([&,this](){
+  //    while(!is_loop_end.load()){
+  //      std::this_thread::sleep_for(std::chrono::milliseconds(500));
+  //      std::cout<<"\r\tto_entry\t";
+  //      float schedule = entry_index/(float)total_entries;
+  //      for (int i=0; i<schedule*100; ++i) std::cout.put('=');
+  //      for (int i=schedule*100; i<100; ++i) std::cout.put('-');
 
-        std::cout<<"\t"<<
-          std::setprecision(4)<<entry_index/(float)total_entries*100<<"%"<<std::flush;
-      }
-      std::cout<<std::endl;
+  //      std::cout<<"\t"<<
+  //        std::setprecision(4)<<entry_index/(float)total_entries*100<<"%"<<std::flush;
+  //    }
+  //    std::cout<<std::endl;
 
-      });
-  slider.detach();
+  //    });
+  //slider.detach();
+
   for (entry_index=0; entry_index<tree->GetEntries(); ++entry_index){
     tree->GetEntry(entry_index);
     if (_is_print_pdf){

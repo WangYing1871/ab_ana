@@ -108,18 +108,18 @@ void unpacking_tool::unpack(){
   out_file->cd();
 
   std::atomic<bool> is_file_end(false);
-  std::thread slider([&](){
-      while(!is_file_end.load()){
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        float schedule = fin.tellg()/(double)fsz;
-        std::cout<<"\r\tunpack\t";
-        for (size_t i=0; i<100*schedule; ++i) std::cout.put('=');
-        for (size_t i=100*schedule; i<100; ++i) std::cout.put('-');
-        std::cout<<"\t"<<std::setprecision(4)
-          <<schedule*100<<" %"<<std::flush;}
-      std::cout<<std::endl;
-      });
-  slider.detach();
+  //std::thread slider([&](){
+  //    while(!is_file_end.load()){
+  //      std::this_thread::sleep_for(std::chrono::milliseconds(500));
+  //      float schedule = fin.tellg()/(double)fsz;
+  //      std::cout<<"\r\tunpack\t";
+  //      for (size_t i=0; i<100*schedule; ++i) std::cout.put('=');
+  //      for (size_t i=100*schedule; i<100; ++i) std::cout.put('-');
+  //      std::cout<<"\t"<<std::setprecision(4)
+  //        <<schedule*100<<" %"<<std::flush;}
+  //    std::cout<<std::endl;
+  //    });
+  //slider.detach();
 
 
 

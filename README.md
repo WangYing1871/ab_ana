@@ -41,4 +41,11 @@ cmake ../ && make
 
 # 速度测试
    测试文件大小(.dat) 9.9G
-   unpack时间: 
+   unpack 时间: 
+    137.187116s wall, 130.680000s user + 3.990000s system = 134.670000s CPU (98.2%)
+  to_entry 时间：
+    190.046933s wall, 184.840000s user + 2.920000s system = 187.760000s CPU (98.8%)
+
+  plots.pdf完整输出(基线值方图)
+
+   存root文件花费较多时间
