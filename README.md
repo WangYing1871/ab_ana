@@ -13,12 +13,12 @@
     If 'data_strcut_cint.h' has been changed
     please update 'LinkDef.h' and remake build/Makefile
 
-#How to run
+# How to run
   cd build
   ./main /path/to/your-file
   [i.g ./main /home/wangying/Documents/xwechat_files/wxid_65uvd5q0l6ms22_ff84/msg/file/2024-09/20240924095111_baseline.dat]
 
-#Result
+# Result
   unpack root file will be genrated in /path/to/
   data struct: entry_new [Defined in 'data_strcut_cint.h']
 
