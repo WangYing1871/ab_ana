@@ -4,6 +4,7 @@
 #include <array>
 #include <list>
 #include <vector>
+#include <cstdint>
 
 struct waveform_pack{
   uint16_t head_tag = 0;
@@ -48,6 +49,15 @@ struct entry{
 
 };
 
+struct entry_new{
+  uint32_t event_id;
+  uint8_t fec_id;
+  uint8_t hit_channel_no;
+  uint64_t timestamp;
+  std::vector<uint16_t> channel_ids;
+  std::vector<std::vector<uint16_t>> adcs;
+};
+
 struct collection_tree{
   float m_energy;
   float m_hits;
@@ -74,6 +84,41 @@ struct collection_tree{
   }
 
   collection_tree& operator=(collection_tree&) = default;
+};
+
+//waveform_pack_head + 128*waveform_pack_body + waveform_pack_tail
+struct waveform_pack_head{
+  uint8_t start_tag;
+  //bit-field defined method [deprecated]
+  //uint64_t package_size:16;
+  //uint64_t time_stamp:48;
+  uint16_t package_size;
+  uint8_t fec_id;
+  uint64_t time_stamp;
+  uint32_t event_id;
+  uint8_t hit_channel_no;
+  uint8_t reserved;
+  uint32_t crc32;
+  waveform_pack_head& operator=(waveform_pack_head&) = default;
+
+};
+struct waveform_pack_body{
+  uint8_t start_tag;
+  uint16_t adc_package_size;
+  uint8_t reserved0;
+  uint8_t channel_no;
+  uint8_t reserved1;
+  uint16_t adc[1024];
+  uint16_t reserved2;
+  uint32_t crc32;
+
+};
+struct waveform_pack_tail{
+  uint8_t start_tag;
+  uint16_t package_size;
+  uint8_t reserved;
+  uint32_t event_size;
+  uint32_t crc32;
 };
 
 

@@ -39,12 +39,10 @@ float mean(_iter_t first, _iter_t last){
 using std::cout; using std::endl; using std::string; using std::vector;
 int main(int argc, char* argv[]){
 
+  /*
   auto* aa = new waveform();
   unpacking_tool unpacker;
   unpacker.m_parser = aa;
-
-  //std::string dat_fname = "20240726125539_baseline.dat";
-  //std::string dat_fname = "/home/wangying/desktop/ab_soft/data/jw_test/jw_20240726_test/data_accumulation/backGroundData/waveform/20240726180153_signal.dat";
 
 
   std::string dat_fname = argv[1];
@@ -52,6 +50,7 @@ int main(int argc, char* argv[]){
   unpacker.m_in_file = dat_fname;
   unpacker.m_out_file = raw_root_fname;
   unpacker.unpack();
+  */
 
   /*
   {
@@ -121,13 +120,45 @@ int main(int argc, char* argv[]){
   */
  
   //std::string channel_in_raw_file = argv[1];
+  /*
   std::string channel_in_raw_file = raw_root_fname;
-  std::string entry_out_file = channel_in_raw_file.substr(0,channel_in_raw_file.find_last_of("_"))+"_entry.root";
+  std::string entry_out_file = channel_in_raw_file.substr(
+      0,channel_in_raw_file.find_last_of("_"))+"_entry.root";
   to_entry bb;
   bb.m_in_file = channel_in_raw_file;
   bb.m_out_file = entry_out_file;
   bb.is_print_pdf(true);
   bb.run();
+  */
+  
+  std::string dat_name = argv[1];
+  std::string entry_out_file = dat_name.substr(
+      0,dat_name.find_last_of("."))+"_entry.root";
+  
+  TFile* fout = new TFile(entry_out_file.c_str(),"recreate");
+  TTree* data_tree = new TTree("CollectionTree","CollectionTree");
+  entry_new entry_buffer;
+  data_tree->Branch("data",std::addressof(entry_buffer));
+  
+  std::ifstream fin(dat_name.c_str());
+  fin.seekg(0,std::ios_base::end);
+  size_t fsz = fin.tellg();
+  fin.seekg(0,std::ios_base::beg);
+  char* data = new char[fsz];
+  char* iter_beg = data;
+  fin.read(data,fsz);
+  fin.close();
+  waveform_by_entry wf;
+
+  wf.set_store(entry_buffer);
+  wf.set_tree(data_tree);
+
+  wf.parse(iter_beg,iter_beg+fsz);
+  fout->cd();
+  data_tree->Write(); 
+  fout->Write(); fout->Close(); 
+  //wf.display();
+  delete[] data;
   
 
   

@@ -15,10 +15,186 @@
 #include "TFile.h"
 #include "TTree.h"
 
+
+
+//---------------------------------------------------------------------
+waveform_by_entry::waveform_by_entry(std::string const& n):parse_base_t(n){
+}
+
+/* TODO  how to write valid ??*/ 
+bool waveform_by_entry::valid(head_t const& head){
+  //if (head.start_tag!=cs_start_tag) return false;
+  //auto ps = head.package_size&0x1FFF;
+  //if ((head.package_size&0x1FFF) != 20) return false;
+  //if (head.package.crc32... /* TODO*/)
+  return true;
+}
+
+
+bool waveform_by_entry::valid(body_t const& body){
+  //if (body.start_tag!=cs_start_tag) return false;
+  //if(body.adc_package_size&0x1FFF!=2060 
+  //    && body.adc_package_size&0x1FFF!=14) return false;
+  return true;
+}
+
+bool waveform_by_entry::valid(tail_t const& tail){
+  //if (tail.start_tag!=cs_start_tag) return false;
+  //if((tail.package_size&0x1FFF)!=12) return false;
+  return true;
+}
+
+void waveform_by_entry::store(){
+  if (!m_store_ref || !m_tree_ref) return;
+  m_store_ref->event_id = get_event_id();
+  m_store_ref->fec_id = get_fec_id();
+  m_store_ref->hit_channel_no = get_hit_channel_no();
+  m_store_ref->timestamp = get_timestamp();
+
+  m_store_ref->channel_ids.resize(m_unit.bodys.size());
+  m_store_ref->adcs.resize(m_unit.bodys.size());
+  for (std::size_t i = 0; auto&& x : m_unit.bodys){
+    m_store_ref->adcs[i].resize(1024);
+    for (std::size_t j=0; auto&& y : x.adc) m_store_ref->adcs[i][j++] = (y&0x0FFF);
+    m_store_ref->channel_ids[i++] = (x.channel_no&0x7F);
+
+  }
+  m_tree_ref->Fill();
+}
+
+uint64_t waveform_by_entry::get_timestamp() const{
+  return 0;
+}
+
+bool waveform_by_entry::parse(char*& iter, char* const& end){
+  using namespace util;
+  auto const& parse_head = [&]()->bool{
+    read_int(m_unit.head.start_tag,iter);
+    //if (m_unit.head.start_tag!=cs_start_tag) return false;
+    read_int(m_unit.head.package_size,iter);
+    if ((m_unit.head.package_size&0x1FFF)!=20) return false;
+    read_int(m_unit.head.fec_id,iter);
+    read_int<uint64_t,6>(m_unit.head.time_stamp,iter);
+    read_int(m_unit.head.event_id,iter);
+    read_int(m_unit.head.hit_channel_no,iter);
+    read_int(m_unit.head.reserved,iter);
+    read_int(m_unit.head.crc32,iter);
+    return true;
+  };
+
+  auto const& parse_body = [&](body_t& bd)->bool{
+    read_int(bd.start_tag,iter);
+    //if (bd.start_tag!=cs_start_tag) return false;
+    read_int(bd.adc_package_size,iter);
+    if((bd.adc_package_size&0x1FFF)!=2060 
+        && (bd.adc_package_size&0x1FFF)!=14)
+      return false;
+    read_int(bd.reserved0,iter);
+    read_int(bd.channel_no,iter);
+    read_int(bd.reserved1,iter);
+    for (auto&& x : bd.adc) read_int(x,iter);
+    read_int(bd.reserved2,iter);
+    read_int(bd.crc32,iter);
+    return true;
+  };
+
+  auto const& parse_tail = [&]()->bool{
+    auto& ref = m_unit.tail;
+    read_int(ref.start_tag,iter);
+    read_int(ref.package_size,iter);
+    if ((ref.package_size&0x1FFF)!=12) return false;
+    read_int(ref.reserved,iter);
+    read_int(ref.event_size,iter);
+    read_int(ref.crc32,iter);
+    return true;
+  };
+
+  enum class e_state : uint8_t{
+    k_unknow
+    ,k_have_head
+    ,k_in_body
+    ,k_have_tail
+  };
+
+  e_state stream_state = e_state::k_unknow;
+  char* back = iter;
+  while(std::distance(iter,end)>0){
+    if(iter[0]==cs_start_tag){
+      back = iter;
+      if ((stream_state==e_state::k_unknow 
+           /*|| stream_state==e_state::k_in_body*/)
+          && parse_head() 
+          && valid(m_unit.head)){
+        stream_state=e_state::k_have_head;
+        continue;
+      }else iter = back;
+
+
+      back = iter;
+      if (stream_state==e_state::k_have_head
+          || stream_state==e_state::k_in_body){
+        char* back = iter;
+        m_unit.bodys.resize(m_unit.bodys.size()+1);
+        auto& b_ref = m_unit.bodys.back();
+        if (parse_body(b_ref) && valid(b_ref)){
+          stream_state=e_state::k_in_body;
+          continue;
+        }
+        else{
+          iter = back;
+          m_unit.bodys.erase(std::prev(m_unit.bodys.end()));
+        }
+      }
+
+      back = iter;
+      if ((stream_state==e_state::k_have_head
+          || stream_state==e_state::k_in_body)
+          && parse_tail() && valid(m_unit.tail)){
+        stream_state=e_state::k_unknow;
+        store();
+        clear();
+      }else iter = back;
+    }else iter++;
+  }
+  return true;
+  
+}
+
+std::ostream& waveform_by_entry::display(std::ostream& os) const{
+  os<<std::hex
+    <<(uint32_t)m_unit.head.start_tag<<" "
+    <<(uint32_t)m_unit.head.package_size<<" "
+    <<(uint32_t)m_unit.head.fec_id<<" "
+    <<(uint64_t)m_unit.head.time_stamp<<" "
+    <<(uint32_t)m_unit.head.event_id<<" "
+    <<(uint32_t)m_unit.head.hit_channel_no<<" "
+    <<(uint32_t)m_unit.head.reserved<<" "
+    <<(uint32_t)m_unit.head.crc32<<" "
+    <<"\n=====================\n"
+    <<(uint32_t)m_unit.bodys.size()<<" "
+    <<(uint32_t)m_unit.bodys.begin()->start_tag<<" "
+    <<(uint32_t)m_unit.bodys.begin()->adc_package_size<<" "
+    <<(uint32_t)m_unit.bodys.begin()->reserved0<<" "
+    <<(uint32_t)m_unit.bodys.begin()->channel_no<<" "
+    <<(uint32_t)m_unit.bodys.begin()->reserved1<<" "
+    <<(uint32_t)m_unit.bodys.begin()->reserved2<<" "
+    <<(uint32_t)m_unit.bodys.begin()->crc32<<" "
+    <<"\n=====================\n"
+    <<(uint32_t)m_unit.tail.start_tag<<" "
+    <<(uint32_t)m_unit.tail.package_size<<" "
+    <<(uint32_t)m_unit.tail.reserved<<" "
+    <<(uint32_t)m_unit.tail.event_size<<" "
+    <<(uint32_t)m_unit.tail.crc32<<" "
+    <<std::dec
+    << "\n";
+  return os;
+}
+//---------------------------------------------------------------------
+
+
 waveform::waveform(std::string const& n) : parse_base_t(n){
   clear();
 }
-
 bool waveform::parse(char*& iter, char* const& end){
   using namespace util;
   read_int(this->m_data.head_tag,iter);
@@ -122,9 +298,6 @@ void unpacking_tool::unpack(){
   //    });
   //slider.detach();
 
-
-
-
   while(!fin.eof()){
     std::vector<uint8_t> unknow_bytes;
     fin.read(bytes_begin+unknow_number,psz-unknow_number);
@@ -165,11 +338,9 @@ void unpacking_tool::unpack_fast(){
         std::cout<<"2\n";
     }
   }
-  
-
   fin.close();
   delete[] file_buf;
-  
-
 }
+
+
 

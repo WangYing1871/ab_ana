@@ -2,6 +2,7 @@
 #define util_HPP 1 
 
 #ifndef info_out
+#include <iostream>
 # define info_out(X) std::cout<<"==> "<<__LINE__<<" "<<#X<<" |"<<(X)<<"|\n"
 #endif
 #include <algorithm>
@@ -12,6 +13,7 @@
 #include <cmath>
 #include <algorithm>
 #include <type_traits>
+#include <functional>
 #include <boost/timer/timer.hpp>
 #include <boost/math/statistics/bivariate_statistics.hpp>
 
@@ -40,11 +42,15 @@ static std::map<int,std::string> channels_map= {
 
 namespace util{
 
-template <class _tp, class = typename std::enable_if<std::is_integral<_tp>::value>::type>
-void read_int(_tp& data, char*& iter){
-  char rt[sizeof(_tp)];
-  for (int i=sizeof(_tp)-1; i>=0; --i) rt[i] = *iter++;
-  data = *reinterpret_cast<_tp*>(rt);}
+template <class _tp
+  ,int _bytes_v = sizeof(_tp)
+  ,class = typename std::enable_if<std::is_integral<_tp>::value>::type>
+inline void read_int(_tp& data, char*& iter){
+  static_assert(_bytes_v<=sizeof(_tp));
+  char rt[_bytes_v];
+  for (int i=_bytes_v-1; i>=0; --i) rt[i] = *iter++;
+  data = *reinterpret_cast<_tp*>(rt);
+}
 void read_int(uint8_t& data, char*& iter);
 
 namespace math{
@@ -61,8 +67,6 @@ std::pair<float, float> mean_and_standard_deviation(_iter_t first, _iter_t last)
 double gaus(double*,double*);
 
 }
-
-
 namespace constant{
 constexpr static float const strip_spac_x = 10./60; //cm
 constexpr static float const strip_spac_y = 10./60; //cm

@@ -4,6 +4,8 @@
 #include <iostream>
 #include <string>
 #include <filesystem>
+#include <list>
+class TTree;
 
 #include "data_strcut_cint.h"
 
@@ -53,6 +55,51 @@ public:
   
 };
 
+struct waveform_by_entry : public parse_base_t{
+  typedef waveform_by_entry self_t;
+  typedef parse_base_t base_t;
+  typedef waveform_pack_head head_t;
+  typedef waveform_pack_body body_t;
+  typedef waveform_pack_tail tail_t;
+
+  waveform_by_entry() = default;
+  waveform_by_entry(std::string const&);
+  ~waveform_by_entry() noexcept = default;
+
+
+  virtual bool parse(char*& iter, char* const& end) override;
+  virtual void clear() override {m_unit.bodys.clear();}
+  virtual std::ostream& display(std::ostream& os = std::cout) const override;
+
+public:
+  inline void set_store(entry_new& ref) {m_store_ref=std::addressof(ref);}
+  inline void set_tree(TTree* ref) {m_tree_ref=ref;}
+
+
+private:
+  bool valid(head_t const&);
+  bool valid(body_t const&);
+  bool valid(tail_t const&);
+
+private:
+  entry_new* m_store_ref=nullptr;
+  TTree* m_tree_ref=nullptr;
+  struct unit_t{
+    head_t head;
+    std::list<body_t> bodys;
+    tail_t tail;
+  };
+  unit_t m_unit;
+  void store();
+  constexpr static uint8_t const cs_start_tag = 0x5a;
+
+public:
+  inline uint32_t get_event_id() {return m_unit.head.event_id;}
+  inline uint8_t get_fec_id() {return m_unit.head.fec_id&0x3f;}
+  inline uint8_t get_hit_channel_no() const {return m_unit.head.hit_channel_no&0x3f; }
+  uint64_t get_timestamp () const;
+};
+
 struct tq : public parse_base_t{
   typedef tq self_t;
   typedef parse_base_t base_t;
@@ -88,22 +135,11 @@ struct unpacking_tool{
   parse_base_t* m_parser;
 
 public:
-
   void unpack();
   void unpack_fast();
 
-
 private:
   static size_t s_data_buf_size;
-  
-
-  
-  
-
-
-
-
-
 };
 
 
