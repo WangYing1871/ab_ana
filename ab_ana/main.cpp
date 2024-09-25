@@ -25,6 +25,8 @@
 #include "TH1I.h"
 #include "TPDF.h"
 #include "TCanvas.h"
+#include "TFolder.h"
+#include "TGraph.h"
 #include "TF1.h"
 
 //namespace util::math{
@@ -159,6 +161,33 @@ int main(int argc, char* argv[]){
   fout->Write(); fout->Close(); 
   //wf.display();
   delete[] data;
+
+  {
+  TFile* rfin = new TFile("/home/wangying/Documents/xwechat_files/wxid_65uvd5q0l6ms22_ff84/msg/file/2024-09/20240510092915_baseline_entry.root");
+  auto* fout = new TFile("temp.root","recreate");
+  auto* data_tree  = static_cast<TTree*>(rfin->Get("CollectionTree"));
+  entry_new* entry_buffer_ptr = new entry_new;
+  data_tree->SetBranchAddress("data",std::addressof(entry_buffer_ptr));
+  info_out(data_tree->GetEntries());
+  for (long long i=0; i<data_tree->GetEntries(); ++i){
+    data_tree->GetEntry(i);
+    std::stringstream sstr; sstr<<"entry_"<<std::to_string(i);
+    auto* folder = new TFolder(sstr.str().c_str(),sstr.str().c_str());
+    info_out(entry_buffer_ptr->adcs.size());
+    for (std::size_t j=0; auto&& x : entry_buffer_ptr->adcs){
+      auto* gr = new TGraph;
+      std::stringstream sstr; sstr<<i<<"-"<<j++;
+      gr->SetName(sstr.str().c_str());
+      for (int k=0; k<1024; ++k) gr->SetPoint(k,k,x[k]);
+      folder->Add(gr);
+    }
+    fout->cd();
+    folder->Write();
+  }
+  rfin->Close();
+  fout->Write(); fout->Close();
+  delete entry_buffer_ptr;
+  }
   
 
   
